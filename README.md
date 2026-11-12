@@ -1,4 +1,4 @@
-# 반도체 공정 데이터 분석 프로젝트
+<img width="1327" height="607" alt="image" src="https://github.com/user-attachments/assets/2b6c7b7d-c297-4f8a-bd20-e1182ce166f8" /># 반도체 공정 데이터 분석 프로젝트
 ## 프로젝트 개요
 반도체 공정은 수많은 공정 단계와 장비, 센서 변수가 복합적으로 작용하는 고도의 정밀 산업으로, 미세한 공정 조건의 변화만으로도 제품의 품질과 수율에 영향을 미칠 수 있다. 이에 따라 공정 과정에서 수집되는 데이터를 체계적으로 분석하고, 잠재적인 이상 징후를 사전에 파악하는 것은 불량 발생을 예방하고 생산 수율을 향상시키는 데 중요한 요소이다.
 
@@ -142,6 +142,19 @@
 
 - 학습 데이터(Train)가 검증 및 평가 데이터에 유입되는 데이터 누수(Data Leakage)를 방지하기 위해, 학습 데이터와 평가 데이터의 독립성을 유지하도록 다음과 같은 구조로 설계하였다.
 <img width="2094" height="751" alt="image" src="https://github.com/user-attachments/assets/abfaadda-1c2a-48b5-91ab-424154a3a2d1" />
+<br><br>
+
+```python
+skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+for train_idx, val_idx in skf.split(X, y):
+    # [Data Leakage 방지] Train 데이터 기준으로만 fit 수행
+    imputer = SimpleImputer(strategy='median')
+    scaler = StandardScaler()
+
+    X_train_imp = pd.DataFrame(imputer.fit_transform(X_train), columns=X.columns)
+    X_val_imp = pd.DataFrame(imputer.transform(X_val), columns=X.columns)
+```
 
 <br><br>
 
@@ -149,13 +162,45 @@
 <br><br>
 <img width="1302" height="585" alt="image" src="https://github.com/user-attachments/assets/fa06412e-df40-435f-8ef6-c10669f27887" />
 <img width="797" height="502" alt="image" src="https://github.com/user-attachments/assets/a9dc78ac-955d-4bcb-b62b-7d0994f350a1" />
-> 하나로
+<br><br>
+
+```python
+def apply_feature_selection(X_train, y_train, X_val, n_features=30):
+# 1단계: 중복 정보 센서 제거
+    corr_matrix = X_train.corr().abs()
+    upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+    to_drop = [column for column in upper.columns if any(upper[column] > 0.95)]
+    X_train_filter = X_train.drop(columns=to_drop)
+
+# 2단계: 불량 관련성 100개픽
+    k_anova = min(100, X_train_filter.shape[1])
+    selector_f = SelectKBest(score_func=f_classif, k=k_anova)
+    selector_f.fit(X_train_filter, y_train)
+    cols_anova = X_train_filter.columns[selector_f.get_support()]
+    X_train_f = X_train_filter[cols_anova]
+
+#3단계: 머신러닝기반 30개 최종 압축
+    rfe_estimator = LogisticRegression(class_weight='balanced', max_iter=1000,
+                                        random_state=42)
+    k_rfe = min(n_features, X_train_f.shape[1])
+    rfe = RFE(estimator=rfe_estimator, n_features_to_select=k_rfe, step=0.1)
+    rfe.fit(X_train_f, y_train)
+    selected_cols = X_train_f.columns[rfe.get_support()]
+    return X_train_f[selected_cols], X_val_f[selected_cols], list(selected_cols)
+```
 
 <br><br>
 
 - 또한 데이터셋에 정상(Pass) 데이터에 비해 불량(Fail) 데이터의 수가 극히 적은 클래스 불균형 문제가 존재한다. 이러한 불균형은 모델이 다수 클래스인 정상 데이터에 편향되어 소수 클래스인 불량 데이터를 제대로 학습하지 못하는 원인이 될 수 있다. 이를 개선하기 위해 SMOTE 증강으로 소수의 불량 데이터에 가상의 유효한 data를 추가하는 오버샘플링을 통해 학습 데이터의 비율을 보완하였다. 이때 증강은 학습 데이터(Train)에만 적용하였으며, 평가 데이터(Test)는 원본 분포를 유지하도록 별도의 증강 과정을 수행하지 않았다. 이를 통해 실제 불량 데이터에 대한 모델의 탐지 및 예측 성능을 객관적으로 평가하고자 하였다.
 <br><br>
 <img width="1292" height="472" alt="image" src="https://github.com/user-attachments/assets/bdf20693-55fd-4fbc-96c2-6fa639ab13b9" />
+<br><br>
+
+```python
+smote = SMOTE(random_state=42)
+X_train_res, y_train_res = \
+    smote.fit_resample(X_train_proc, y_train)
+```
 
 <br><br>
 
@@ -174,23 +219,60 @@ Boosting 기반 고성능 / 불량 탐지 성능 극대화 후보
 > - kNN  
 거리 기반 유사도 측정
 
-코드 설명
+```python
+scale_pos_weight = (len(y) - sum(y)) / sum(y)
+models = {
+    'kNN': KNeighborsClassifier(n_neighbors=5),
+    'Decision Tree': DecisionTreeClassifier(class_weight='balanced', max_depth=5, random_state=42),
+    'Logistic Regression': LogisticRegression(class_weight='balanced', max_iter=1000, random_state=42),
+    'Random Forest': RandomForestClassifier(class_weight='balanced', n_estimators=100, random_state=42),
+    'XGBoost': XGBClassifier(scale_pos_weight=scale_pos_weight, eval_metric='logloss', random_state=42)
+}
+```
 
 <br><br>
 
 - 불량 제품을 정상으로 판정하는 'False Negative'는 실제 불량품이 고객사에 인도될 수 있다는 점에서 가장 치명적인 위험 요소로 판단하였다. 이에 따라 일반적인 분류 기준인 50%보다 낮은 30%를 불량 판정 임계값(CUSTOM_THRESHOLD = 0.3)으로 하향 조정하였다. 즉, 모델이 예측한 불량 확률이 30% 이상일 경우 불량으로 판정하도록 기준을 조정하였다. 이를 통해 불량 제품에 대한 탐지 민감도를 높이고, 실제 불량품을 정상으로 오인하는 False Negative 발생을 최소화하고자 했다.
 <br><br>
 <img width="1046" height="425" alt="image" src="https://github.com/user-attachments/assets/966c3103-a037-4c64-851a-bed11cad2d42" />
+<br><br>
+
+```python
+CUSTOM_THRESHOLD = 0.3
+
+model.fit(X_train_res, y_train_res)
+y_proba = model.predict_proba(X_val_proc)[:, 1]
+y_pred_custom = (y_proba >= CUSTOM_THRESHOLD).astype(int)
+```
 
 <br><br>
 
 - 일반적인 정확도(Accuracy)는 정상 데이터의 비율이 높은 불균형 데이터 환경에서 실제 불량 탐지 성능을 제대로 반영하지 못하는 한계가 있다. 이에 따라 본 프로젝트에서는 불량 데이터와 같은 소수 클래스의 예측 성능을 중점적으로 평가하기 위해 PR-AUC(Precision-Recall AUC)를 주요 평가 지표로 선정하였다. PR-AUC는 불량 탐지율(Recall)과 불량 예측의 정확도(Precision) 간의 관계를 종합적으로 평가하며, 실제 불량 데이터를 얼마나 효과적으로 식별하는지 확인할 수 있다. 이를 통해 단순히 전체 예측 정확도를 높이는 것보다 불량 데이터의 탐지 성능을 우선적으로 고려하여 모델을 평가하고자 하였다.
 <br><br>
 <img width="1292" height="515" alt="image" src="https://github.com/user-attachments/assets/35789f20-ec19-4aeb-9687-25f8c75b856a" />
+<br><br>
+
+```python
+precision_vals, recall_vals, _ = precision_recall_curve(y_val, y_proba)
+pr_auc = auc(recall_vals, precision_vals)
+metrics['Recall'].append(recall_score(y_val, y_pred_custom, zero_division=0))
+metrics['PR-AUC'].append(pr_auc)
+```
 
 <br><br>
 
 - Feature Selection과 SMOTE를 통한 데이터 불균형 보완, 분류 임계값(Threshold) 조정 과정을 적용한 후 5가지 머신러닝 모델의 최종 성능을 비교·평가하였다. 각 모델의 Accuracy, Precision, Recall, F1-Score 및 PR-AUC를 산출하여 전반적인 분류 성능과 불량 탐지 능력을 분석하였으며, 특히 실제 불량 데이터의 탐지 성능을 중점적으로 확인하기 위해 Recall과 PR-AUC를 주요 평가 지표로 설정하였다. 또한 Precision-Recall Curve를 시각화하고, 불량 데이터의 전체 비율을 기준선(Baseline)으로 설정하여 각 모델의 성능을 비교하였다.
+<br><br>
+
+```python
+plt.figure(figsize=(9, 6))[cite: 9]
+for model_name, (rec, prec, score) in pr_curves_data.items():
+    plt.plot(rec, prec, label=f'{model_name} (PR-AUC = {score:.4f})')
+baseline_rate = sum(y) / len(y)[cite: 9]
+plt.axhline(y=baseline_rate, color='r', linestyle='--', label=f'Baseline ({baseline_rate:.4f})')
+plt.show()
+```
+
 <br><br>
 <img width="1012" height="405" alt="image" src="https://github.com/user-attachments/assets/dab9b9ca-6a3d-476b-8fe8-6fc8b895b58b" />
 <img width="1036" height="670" alt="image" src="https://github.com/user-attachments/assets/1e58582f-8c41-47ad-9a11-1636264050dd" />
@@ -201,11 +283,3 @@ Boosting 기반 고성능 / 불량 탐지 성능 극대화 후보
 - 최종 모델의 학습 결과를 바탕으로 공정 불량 예측에 영향을 미치는 주요 센서 변수를 확인하기 위해 Feature Importance 분석을 수행하였다. 분석 결과, Sensor_45, Sensor_82, Sensor_12가 상위 3개 변수로 도출되었으며, 나머지 센서 변수에 비해 상대적으로 높은 중요도를 나타냈다. 이는 해당 센서들이 모델의 불량 여부 예측에 큰 영향을 미치는 주요 변수임을 의미한다.
 <img width="1024" height="765" alt="image" src="https://github.com/user-attachments/assets/4bd8c18d-7119-4290-9cc1-55057fdd063f" />
 
-
-```java
-public class BootSpringBootApplication {
-  public static void main(String[] args) {
-    System.out.println("Hello, Honeymon");
-  }
-}
-```
