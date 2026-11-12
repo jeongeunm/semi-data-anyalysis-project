@@ -123,6 +123,7 @@
 초기 머신러닝 모델의 성능을 비교한 결과, 일부 모델에서 높은 Accuracy를 기록하였으나 실제 불량 데이터의 탐지 성능은 전반적으로 낮게 나타났다. 특히 Random Forest와 XGBoost는 각각 0.9336, 0.9343의 높은 정확도를 보였지만, Recall과 Precision이 모두 0으로 나타나 실제 불량 데이터를 하나도 탐지하지 못하는 결과를 보였다.
 
 반면 Decision Tree와 Logistic Regression은 각각 0.3171, 0.3471의 Recall을 기록하여 일부 불량 데이터를 탐지하였다. 특히 Logistic Regression은 34.71%의 가장 높은 불량 탐지율을 보였으나, Precision이 0.0573으로 낮아 불량으로 예측한 데이터 중 실제 불량의 비율이 매우 낮다는 한계가 나타났다. KNN 역시 0.9324의 Accuracy를 기록하였지만 Recall과 Precision이 모두 0으로 나타나 불량 탐지에 실패하였다.
+
 <br><br>
 
  ### - 5,6주차 | ML 최종 성능 평가 및 불량 변수 도출
