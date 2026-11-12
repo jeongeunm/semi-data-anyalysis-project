@@ -112,4 +112,23 @@
 > ML 성능 평가
 <img width="1512" height="385" alt="image" src="https://github.com/user-attachments/assets/fdfe22dd-c7e8-44d8-9703-1b58d1645b2a" />
 
- 
+ ### - 5,6주차 | ML을 통한 
+본 데이터셋은 Feature(변수)의 수가 많고 정상(Pass)과 불량(Fail) 간의 클래스 불균형이 심하다는 특징이 있다. 이러한 데이터 환경에서는 모델이 다수 클래스인 정상 데이터에 편향되어 모든 제품을 정상으로 분류하고, 실제 불량품을 탐지하지 못하는 문제가 발생할 수 있다. 이를 방지하기 위해 데이터 정제부터 모델 학습 및 성능 평가에 이르는 전반적인 머신러닝 파이프라인 구조를 설계하였다.
+
+> 1. 방어 (Robustness)
+> > 누수 방지 설계
+> > > Data Leakage 원천 차단.
+5-Fold 교차 검증의 Train FoId 내부에 전처리 과정(Scaling, lmputation)을 완전 격리.
+> 2. 정제 (Precision)
+> > 다단계 변수 압축
+> > > 3단계 Feature SeIection. 590개의 노이즈 섞인 센서 데이터 중 불량 판별의 핵심이 되는30개 센서만 정밀 타겟팅.
+> 3. 대응 (Countermeasure)
+> > 불균형 집중 타격
+> > > 소수 클래스 증강 및 감도 조절. Train 내부 SMOTE 적용 및 임계값(Threshold) 하향을 통한 미탐방지.
+
+<br><br>
+
+또한 학습 데이터(Train)가 검증 및 평가 데이터에 유입되는 데이터 누수(Data Leakage)를 방지하기 위해, 학습 데이터와 평가 데이터의 독립성을 유지하도록 다음과 같은 구조로 설계하였다.
+<img width="2094" height="751" alt="image" src="https://github.com/user-attachments/assets/abfaadda-1c2a-48b5-91ab-424154a3a2d1" />
+
+
