@@ -280,6 +280,8 @@ plt.show()
 
 <br><br>
 
+
+
 - 최종 모델의 학습 결과를 바탕으로 공정 불량 예측에 영향을 미치는 주요 센서 변수를 확인하기 위해 Feature Importance 분석을 수행하였다. 분석 결과, Sensor_45, Sensor_82, Sensor_12가 상위 3개 변수로 도출되었으며, 나머지 센서 변수에 비해 상대적으로 높은 중요도를 나타냈다. 이는 해당 센서들이 모델의 불량 여부 예측에 큰 영향을 미치는 주요 변수임을 의미한다.
 <img width="1024" height="765" alt="image" src="https://github.com/user-attachments/assets/4bd8c18d-7119-4290-9cc1-55057fdd063f" />
 
